@@ -64,8 +64,8 @@ Langkah Instalasi
 
 ```bash
 # 1. Clone repository atau download file
-git clone https://github.com/username/nuclear-ddos-bot.git
-cd nuclear-ddos-bot
+git clone https://github.com/FIXZZ01/DDOS.git
+cd DDOS
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -74,7 +74,7 @@ pip install -r requirements.txt
 pip install python-telegram-bot requests cloudscraper colorama
 
 # 3. Edit konfigurasi
-nano config.py
+nano bot.py
 # Atau edit langsung di bot.py:
 # - TELEGRAM_BOT_TOKEN
 # - ADMIN_IDS (Telegram User ID Anda)
