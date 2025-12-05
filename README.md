@@ -9,7 +9,7 @@
 · Penggunaan ilegal dapat mengakibatkan tindakan hukum
 · Penulis TIDAK BERTANGGUNG JAWAB atas penyalahgunaan tool ini
 · Gunakan hanya pada sistem yang Anda miliki atau memiliki izin untuk diuji
-<b>
+</b>
 
 📋 DAFTAR ISI
 
