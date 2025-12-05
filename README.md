@@ -1,20 +1,15 @@
-☢️ NUCLEAR DDoS BOT v3.0 - ULTIMATE EDITION
-
-https://img.shields.io/badge/Version-3.0_Ultimate-red
-https://img.shields.io/badge/Python-3.8+-blue
-https://img.shields.io/badge/Telegram-Bot-green
-https://img.shields.io/badge/OSI-7_Layers-orange
-https://img.shields.io/badge/License-Educational-purple
+☢️ DDoS BOT v3.0 - ULTIMATE EDITION
 
 🚨 PENTING: DISCLAIMER
 
 ⚠️ PERINGATAN KERAS:
-
+<b>
 · Tool ini dibuat HANYA untuk tujuan edukasi dan pengujian keamanan
 · DILARANG KERAS menggunakan untuk menyerang sistem tanpa izin
 · Penggunaan ilegal dapat mengakibatkan tindakan hukum
 · Penulis TIDAK BERTANGGUNG JAWAB atas penyalahgunaan tool ini
 · Gunakan hanya pada sistem yang Anda miliki atau memiliki izin untuk diuji
+<b>
 
 📋 DAFTAR ISI
 
